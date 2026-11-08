@@ -1,0 +1,34 @@
+{
+  "name": "tt-foto-matcherfassung",
+  "description": "Reads a photo of a Swiss table tennis team match sheet and fills in the click-tt result entry forms.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "recognize": "tsx scripts/recognize.ts",
+    "postinstall": "wxt prepare",
+    "serve:fixtures": "tsx scripts/serve-fixtures.ts",
+    "build:dev": "wxt build --mode development",
+    "build:dev:firefox": "wxt build --mode development -b firefox"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "jsdom": "^31.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0",
+    "wxt": "^0.21.5"
+  }
+}

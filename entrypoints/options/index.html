@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Matchblatt-Foto – Einstellungen</title>
+    <meta name="manifest.open_in_tab" content="true" />
+    <style>
+      body { font: 14px/1.5 system-ui, sans-serif; max-width: 640px; margin: 24px auto; padding: 0 16px; color: #222; }
+      label { display: block; font-weight: 600; margin-top: 16px; }
+      input, select { width: 100%; padding: 6px; margin-top: 4px; box-sizing: border-box; font: inherit; }
+      button { margin-top: 20px; padding: 8px 16px; font: inherit; cursor: pointer; }
+      .hint { color: #555; font-size: 13px; }
+      #saved { color: #2e7d32; margin-left: 12px; }
+      section { margin-top: 28px; padding-top: 12px; border-top: 1px solid #ddd; }
+    </style>
+  </head>
+  <body>
+    <h1>Matchblatt-Foto für click-tt</h1>
+    <p>
+      Die Erweiterung liest ein Foto des ausgefüllten Matchblatts und trägt Aufstellung und Satzresultate in
+      click-tt ein. Die Auswertung des Fotos übernimmt die KI Claude von Anthropic mit deinem eigenen API-Key.
+    </p>
+
+    <form id="settings">
+      <label for="apiKey">Claude-API-Key</label>
+      <input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-…" />
+      <div class="hint">
+        Erstellen unter <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">platform.claude.com</a>.
+        Der Key wird nur lokal in diesem Browser gespeichert.
+      </div>
+
+      <label for="model">Modell</label>
+      <select id="model"></select>
+
+      <label for="effort">Gründlichkeit</label>
+      <select id="effort">
+        <option value="low">Niedrig (schneller, günstiger)</option>
+        <option value="medium">Mittel (empfohlen)</option>
+        <option value="high">Hoch (für schwer lesbare Blätter)</option>
+      </select>
+
+      <button type="submit">Speichern</button><span id="saved"></span>
+    </form>
+
+    <section>
+      <h2>Datenschutz</h2>
+      <p class="hint">
+        Das Foto und die Spielernamen der beiden Mannschaften aus click-tt werden direkt von deinem Browser an die
+        Claude-API von Anthropic gesendet, um das Matchblatt auszuwerten. Es gibt keinen Server dieser Erweiterung,
+        keine Analyse und kein Tracking. Zuordnungen von Namen auf dem Matchblatt zu click-tt-Spielern werden nur
+        lokal gespeichert.
+      </p>
+      <button type="button" id="forgetNames">Gelernte Namenszuordnungen löschen</button><span id="forgotten"></span>
+    </section>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

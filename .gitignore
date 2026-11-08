@@ -1,0 +1,8 @@
+node_modules/
+.output/
+.wxt/
+stats.html
+.env
+*.log
+# Recognition results of real photos may contain personal data
+scripts/out/
