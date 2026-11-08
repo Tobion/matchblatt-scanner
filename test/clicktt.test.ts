@@ -8,7 +8,7 @@ import {
 } from '../src/clicktt/lineup';
 import { detectStep, matchKey } from '../src/clicktt/page';
 import { fillResults, readChosenPlayers, readResultRows } from '../src/clicktt/results';
-import { fixturePlan, loadPage } from './helpers';
+import { doubles, fixturePlan, loadPage } from './helpers';
 
 describe('page detection', () => {
   it('detects the entry steps and the match', () => {
@@ -79,6 +79,53 @@ describe('step 1: lineup', () => {
     ]);
   });
 
+  it('inserts a doubles-only player and marks him for doubles only', () => {
+    const doc = loadPage('click-tt-single-match-report-part-1.html');
+    const plan = fixturePlan({}, (sheet) => {
+      sheet.homeDoubles = doubles('A', ['Christian', 'Schäfer, Christian']);
+    });
+    expect(plan.doubles.home!.map((e) => [e.position, e.player])).toEqual([
+      ['A', 'Stuber, Lukas'],
+      [null, 'Schäfer, Christian'],
+    ]);
+
+    const insert = nextLineupAction(readLineupSections(doc), plan);
+    expect(insert.kind).toBe('insert');
+    if (insert.kind !== 'insert') return;
+    expect(insert.options.map((o) => o.textContent)).toEqual(['4.1 Schäfer, Christian']);
+
+    // Simulate the page after click-tt inserted the player as fourth row.
+    const sections = readLineupSections(doc);
+    const reckel = sections[0]!.rows[2]!.row;
+    const copy = reckel.cloneNode(true) as HTMLTableRowElement;
+    copy.querySelector('select')!.name = 'homeSingleFormationPos-3';
+    [...copy.cells].find((c) => c.textContent === 'Reckel, Jim')!.textContent = 'Schäfer, Christian';
+    copy.querySelectorAll('td[rowspan]').forEach((c) => c.remove());
+    reckel.after(copy);
+
+    const updated = readLineupSections(doc);
+    expect(nextLineupAction(updated, plan).kind).toBe('assign');
+    expect(assignPositions(updated, plan).missing).toEqual([]);
+    expect(updated[0]!.rows.map((r) => [r.player, r.positionSelect.value, r.doublesSelect!.value])).toEqual([
+      ['Stuber, Lukas', '0', '0'],
+      ['Moser, Herbert', '1', NO_SELECTION],
+      ['Reckel, Jim', '2', NO_SELECTION],
+      ['Schäfer, Christian', NO_SELECTION, '0'],
+    ]);
+  });
+
+  it('reports a doubles-only player that is not in the list', () => {
+    const doc = loadPage('click-tt-single-match-report-part-1.html');
+    const sections = readLineupSections(doc);
+    const plan = fixturePlan({}, (sheet) => {
+      sheet.homeDoubles = doubles('A', ['Zorro', null]);
+    });
+    expect(nextLineupAction(sections, plan).kind).toBe('assign');
+    expect(assignPositions(sections, plan).missing).toEqual([
+      { side: 'home', position: 'Doppel', writtenName: 'Zorro', player: null },
+    ]);
+  });
+
   it('keeps regular players and reports unresolved names', () => {
     const doc = loadPage('click-tt-single-match-report-part-1.html');
     const sections = readLineupSections(doc);
@@ -95,7 +142,7 @@ describe('step 1: lineup', () => {
 describe('step 2: results', () => {
   const page = () => loadPage('click-tt-single-match-report-part-2.html');
   // The saved page has Stuber/Reckel and Ung/Rashiti in the doubles.
-  const plan = () => fixturePlan({}, (sheet) => (sheet.guestDoubles = ['Y', 'Z']));
+  const plan = () => fixturePlan({}, (sheet) => (sheet.guestDoubles = doubles('Y', 'Z')));
 
   it('finds all ten games', () => {
     const rows = readResultRows(page());
@@ -128,7 +175,7 @@ describe('step 2: results', () => {
     const marks = fillResults(
       rows,
       fixturePlan({}, (sheet) => {
-        sheet.guestDoubles = ['Y', 'Z'];
+        sheet.guestDoubles = doubles('Y', 'Z');
         sheet.games[0]!.sets[1] = { home: 11, guest: 10, uncertain: false };
         sheet.games[4]!.sets[0]!.uncertain = true;
       }),
@@ -142,10 +189,39 @@ describe('step 2: results', () => {
     ]);
   });
 
-  it('reads the chosen player per position', () => {
+  it('reads the chosen players', () => {
     expect(readChosenPlayers(readResultRows(page()))).toEqual({
-      home: { A: 'Stuber, Lukas', B: 'Moser, Herbert', C: 'Reckel, Jim' },
-      guest: { X: 'Weber, Andreas', Y: 'Ung, No', Z: 'Rashiti, Aziz' },
+      singles: {
+        home: { A: 'Stuber, Lukas', B: 'Moser, Herbert', C: 'Reckel, Jim' },
+        guest: { X: 'Weber, Andreas', Y: 'Ung, No', Z: 'Rashiti, Aziz' },
+      },
+      doubles: { home: ['Stuber, Lukas', 'Reckel, Jim'], guest: ['Ung, No', 'Rashiti, Aziz'] },
     });
+  });
+
+  it('accepts doubles players in a different order than on the sheet', () => {
+    const marks = fillResults(
+      readResultRows(page()),
+      fixturePlan({}, (sheet) => {
+        sheet.homeDoubles = doubles('C', 'A');
+        sheet.guestDoubles = doubles('Z', 'Y');
+      }),
+    );
+    expect(marks).toEqual([]);
+  });
+
+  it('expects a doubles-only player in the doubles row', () => {
+    const rows = readResultRows(page());
+    const marks = fillResults(
+      rows,
+      fixturePlan({}, (sheet) => {
+        sheet.homeDoubles = doubles('A', ['Christian', 'Schäfer, Christian']);
+        sheet.guestDoubles = doubles('Y', 'Z');
+      }),
+    );
+    // The saved page has Reckel in the doubles; Schäfer is not selectable there yet.
+    expect(marks.map((m) => [m.element === rows[6]!.homePlayers[1], m.message])).toEqual([
+      [true, 'Laut Matchblatt: Schäfer, Christian („Christian“)'],
+    ]);
   });
 });

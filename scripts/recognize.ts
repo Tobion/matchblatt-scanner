@@ -79,7 +79,8 @@ function compare(expected: RecognizedSheet, actual: RecognizedSheet): string[] {
       diffs.push(`Player ${want.position}: expected "${want.writtenName}", got "${got?.writtenName ?? '-'}"`);
     }
   }
-  const pair = (list: string[]) => [...list].sort().join('+');
+  const pair = (list: RecognizedSheet['homeDoubles']) =>
+    list.map((d) => d.position ?? d.writtenName.trim().toLowerCase()).sort().join('+');
   if (pair(expected.homeDoubles) !== pair(actual.homeDoubles)) diffs.push(`Home doubles: expected ${pair(expected.homeDoubles)}, got ${pair(actual.homeDoubles)}`);
   if (pair(expected.guestDoubles) !== pair(actual.guestDoubles)) diffs.push(`Guest doubles: expected ${pair(expected.guestDoubles)}, got ${pair(actual.guestDoubles)}`);
 

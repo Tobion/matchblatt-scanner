@@ -3,7 +3,8 @@ import { bestCandidate, nameSimilarity, normalizeName, stripRankPrefix } from '.
 import { buildFillPlan } from '../src/domain/plan';
 import { analyzeGame, isValidSet } from '../src/domain/validate';
 import type { Rosters } from '../src/domain/model';
-import { exampleSheet } from './helpers';
+import { doubles, exampleSheet } from './helpers';
+import { learnFromChoices } from '../src/domain/learn';
 
 describe('isValidSet', () => {
   it.each([
@@ -93,7 +94,8 @@ describe('buildFillPlan with the example sheet', () => {
 
     expect(plan.lineup.home.map((e) => e.player)).toEqual(['Muster, Daniel', 'Meier, Tim', 'Schultze, Tobias']);
     expect(plan.lineup.guest.map((e) => e.player)).toEqual(['Novak, Pavel', 'Frei, Fabian', 'Oliveira, Oliver']);
-    expect(plan.doubles).toEqual({ home: ['A', 'C'], guest: ['X', 'Z'] });
+    expect(plan.doubles.home!.map((e) => e.player)).toEqual(['Muster, Daniel', 'Schultze, Tobias']);
+    expect(plan.doubles.guest!.map((e) => e.position)).toEqual(['X', 'Z']);
     expect(plan.warnings).toEqual([]);
     expect(plan.games.flatMap((g) => g.issues)).toEqual([]);
     expect(plan.games[2]).toMatchObject({ walkoverLoser: 'guest', sets: [] });
@@ -121,5 +123,37 @@ describe('buildFillPlan with the example sheet', () => {
     sheet.totalHome = 6;
     sheet.totalGuest = 4;
     expect(buildFillPlan(sheet, rosters).warnings.join()).toContain('Total auf dem Matchblatt (6:4)');
+  });
+
+  it('resolves a doubles-only player and a doubles name of a singles player', () => {
+    const sheet = exampleSheet();
+    sheet.homeDoubles = doubles(['Tobias', null], ['Thomas', null]);
+    const plan = buildFillPlan(sheet, rosters);
+    expect(plan.doubles.home).toEqual([
+      { position: 'C', writtenName: 'Tobias', player: 'Schultze, Tobias', uncertain: false },
+      { position: null, writtenName: 'Thomas', player: 'Keller, Thomas', uncertain: false },
+    ]);
+    expect(plan.warnings).toEqual([]);
+  });
+
+  it('warns about unreadable doubles', () => {
+    const sheet = exampleSheet();
+    sheet.guestDoubles = doubles('X', 'X');
+    expect(buildFillPlan(sheet, rosters).warnings).toEqual(['Gast: Doppelspieler konnten nicht eindeutig gelesen werden.']);
+  });
+
+  it('learns singles names and an unambiguous doubles-only name', () => {
+    const sheet = exampleSheet();
+    sheet.homeDoubles = doubles('A', ['Tomi', null]);
+    const plan = buildFillPlan(sheet, rosters);
+    const learned = {};
+    learnFromChoices(learned, plan, {
+      singles: { home: { A: 'Muster, Daniel', B: 'Meier, Tim', C: 'Schultze, Tobias' }, guest: {} },
+      doubles: { home: ['Muster, Daniel', 'Keller, Thomas'], guest: [] },
+    });
+    expect(learned).toEqual({
+      'pinguin zurich': { dane: 'Muster, Daniel', tim: 'Meier, Tim', tobias: 'Schultze, Tobias', tomi: 'Keller, Thomas' },
+      'buchs zh': {},
+    });
   });
 });

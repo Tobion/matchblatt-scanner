@@ -1,8 +1,7 @@
-import type { RecognizedSheet } from '../recognition/schema';
+import type { RecognizedDoublesPlayer, RecognizedSheet } from '../recognition/schema';
 import {
   GAME_ORDER,
-  GUEST_POSITIONS,
-  HOME_POSITIONS,
+  positionsOf,
   type GameDefinition,
   type Position,
   type Rosters,
@@ -21,8 +20,8 @@ export interface FillPlan {
   /** Team names as shown in click-tt. */
   teamNames: Record<Side, string>;
   lineup: Record<Side, LineupEntry[]>;
-  /** Positions of the doubles players, null if not determinable. */
-  doubles: Record<Side, Position[] | null>;
+  /** The two doubles players per side, null if not determinable. */
+  doubles: Record<Side, DoublesEntry[] | null>;
   games: GamePlan[];
   /** Problems not tied to a single field (German, shown to the user). */
   warnings: string[];
@@ -32,6 +31,14 @@ export interface LineupEntry {
   position: Position;
   writtenName: string;
   /** Resolved click-tt player name, null if it could not be matched. */
+  player: string | null;
+  uncertain: boolean;
+}
+
+export interface DoublesEntry {
+  /** Singles position of the player, null for a doubles-only player. */
+  position: Position | null;
+  writtenName: string;
   player: string | null;
   uncertain: boolean;
 }
@@ -67,8 +74,8 @@ export function buildFillPlan(sheet: RecognizedSheet, rosters: Rosters, learned:
   };
 
   const doubles = {
-    home: checkDoubles(sheet.homeDoubles, 'Heim', warnings),
-    guest: checkDoubles(sheet.guestDoubles, 'Gast', warnings),
+    home: resolveDoubles('home', sheet.homeDoubles, lineup.home, rosters, learned, warnings),
+    guest: resolveDoubles('guest', sheet.guestDoubles, lineup.guest, rosters, learned, warnings),
   };
 
   const games = GAME_ORDER.map((definition, index) => planGame(definition, index, sheet, warnings));
@@ -85,32 +92,54 @@ export function buildFillPlan(sheet: RecognizedSheet, rosters: Rosters, learned:
   };
 }
 
-function resolveLineup(side: Side, sheet: RecognizedSheet, rosters: Rosters, learned: LearnedNames): LineupEntry[] {
+interface NameResolution {
+  player: string | null;
+  uncertain: boolean;
+}
+
+/** Maps a handwritten name to a click-tt player: learned mapping, then model, then fuzzy match. */
+function resolveName(
+  writtenName: string,
+  rosterMatch: string | null,
+  nameUncertain: boolean,
+  side: Side,
+  rosters: Rosters,
+  learned: LearnedNames,
+): NameResolution {
+  if (!writtenName) return { player: null, uncertain: true };
   const roster = rosters[side];
   const candidates = roster.players.map((p) => p.name);
   const byNormalized = new Map(candidates.map((name) => [normalizeName(name), name]));
-  const teamLearned = learned[learnedKey(roster.teamName)] ?? {};
-  const positions = side === 'home' ? HOME_POSITIONS : GUEST_POSITIONS;
 
-  const entries: LineupEntry[] = positions.map((position) => {
+  const learnedName = learned[learnedKey(roster.teamName)]?.[learnedKey(writtenName)];
+  if (learnedName && byNormalized.has(normalizeName(learnedName))) {
+    return { player: byNormalized.get(normalizeName(learnedName))!, uncertain: false };
+  }
+
+  const local = bestCandidate(writtenName, candidates);
+  const modelMatch = rosterMatch ? byNormalized.get(normalizeName(rosterMatch)) : undefined;
+  if (modelMatch) {
+    // Uncertain if the model says so or local fuzzy matching prefers someone else.
+    const disagrees = local !== null && local.name !== modelMatch;
+    return { player: modelMatch, uncertain: nameUncertain || disagrees };
+  }
+  if (local) return { player: local.name, uncertain: local.uncertain };
+  return { player: null, uncertain: true };
+}
+
+function resolveLineup(side: Side, sheet: RecognizedSheet, rosters: Rosters, learned: LearnedNames): LineupEntry[] {
+  const entries: LineupEntry[] = positionsOf(side).map((position) => {
     const recognized = sheet.players.find((p) => p.position === position);
     const writtenName = recognized?.writtenName.trim() ?? '';
-    if (!writtenName) return { position, writtenName, player: null, uncertain: true };
-
-    const learnedName = teamLearned[learnedKey(writtenName)];
-    if (learnedName && byNormalized.has(normalizeName(learnedName))) {
-      return { position, writtenName, player: byNormalized.get(normalizeName(learnedName))!, uncertain: false };
-    }
-
-    const local = bestCandidate(writtenName, candidates);
-    const modelMatch = recognized?.rosterMatch ? byNormalized.get(normalizeName(recognized.rosterMatch)) : undefined;
-    if (modelMatch) {
-      // Uncertain if the model says so or local fuzzy matching prefers someone else.
-      const disagrees = local !== null && local.name !== modelMatch;
-      return { position, writtenName, player: modelMatch, uncertain: recognized!.nameUncertain || disagrees };
-    }
-    if (local) return { position, writtenName, player: local.name, uncertain: local.uncertain };
-    return { position, writtenName, player: null, uncertain: true };
+    const resolved = resolveName(
+      writtenName,
+      recognized?.rosterMatch ?? null,
+      recognized?.nameUncertain ?? true,
+      side,
+      rosters,
+      learned,
+    );
+    return { position, writtenName, ...resolved };
   });
 
   // The same player cannot play two positions: drop such ambiguous matches.
@@ -123,13 +152,37 @@ function resolveLineup(side: Side, sheet: RecognizedSheet, rosters: Rosters, lea
   return entries;
 }
 
-function checkDoubles(positions: Position[], label: string, warnings: string[]): Position[] | null {
-  const unique = [...new Set(positions)];
-  if (unique.length !== 2) {
+/**
+ * Doubles players are usually singles players (given by position or name),
+ * but can also be players who only play doubles and must be added to the lineup.
+ */
+function resolveDoubles(
+  side: Side,
+  recognized: RecognizedDoublesPlayer[],
+  lineup: LineupEntry[],
+  rosters: Rosters,
+  learned: LearnedNames,
+  warnings: string[],
+): DoublesEntry[] | null {
+  const label = side === 'home' ? 'Heim' : 'Gast';
+  const entries = recognized.map((doubles): DoublesEntry => {
+    const writtenName = doubles.writtenName.trim();
+    const singles = lineup.find((e) => e.position === doubles.position);
+    if (singles) {
+      return { position: singles.position, writtenName: writtenName || singles.writtenName, player: singles.player, uncertain: singles.uncertain };
+    }
+    const resolved = resolveName(writtenName, doubles.rosterMatch, doubles.nameUncertain, side, rosters, learned);
+    // A name that turns out to be a singles player refers to that position.
+    const asSingles = resolved.player ? lineup.find((e) => e.player === resolved.player) : undefined;
+    return { position: asSingles?.position ?? null, writtenName, ...resolved };
+  });
+
+  const keys = entries.map((e) => e.position ?? e.player ?? `?${e.writtenName}`);
+  if (entries.length !== 2 || new Set(keys).size !== 2 || entries.some((e) => !e.position && !e.writtenName)) {
     warnings.push(`${label}: Doppelspieler konnten nicht eindeutig gelesen werden.`);
     return null;
   }
-  return unique;
+  return entries;
 }
 
 function planGame(definition: GameDefinition, index: number, sheet: RecognizedSheet, warnings: string[]): GamePlan {
@@ -194,9 +247,21 @@ function gameWinner(game: GamePlan): Side | null {
 
 /** Players of a side that are in the doubles, as click-tt names (null if unknown). */
 export function doublesPlayers(plan: FillPlan, side: Side): (string | null)[] | null {
-  const positions = plan.doubles[side];
-  if (!positions) return null;
-  return positions.map((pos) => plan.lineup[side].find((e) => e.position === pos)?.player ?? null);
+  return plan.doubles[side]?.map((e) => e.player) ?? null;
+}
+
+/** Doubles entries of players who play no singles. */
+export function doublesOnlyEntries(plan: FillPlan, side: Side): DoublesEntry[] {
+  return plan.doubles[side]?.filter((e) => e.position === null) ?? [];
+}
+
+/** All players that must be in the click-tt lineup of a side (singles and doubles-only). */
+export function requiredPlayers(plan: FillPlan, side: Side): { players: string[]; complete: boolean } {
+  const entries = [...plan.lineup[side], ...doublesOnlyEntries(plan, side)];
+  return {
+    players: entries.map((e) => e.player).filter((p): p is string => !!p),
+    complete: entries.every((e) => e.player) && plan.doubles[side] !== null,
+  };
 }
 
 export function playerAt(plan: FillPlan, side: Side, position: Position): LineupEntry | undefined {

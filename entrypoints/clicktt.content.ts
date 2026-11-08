@@ -1,7 +1,8 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { browser } from 'wxt/browser';
-import { GUEST_POSITIONS, HOME_POSITIONS, type Side } from '../src/domain/model';
-import { buildFillPlan, learnedKey, type FillPlan, type LearnedNames } from '../src/domain/plan';
+import type { Side } from '../src/domain/model';
+import { learnFromChoices } from '../src/domain/learn';
+import { buildFillPlan, doublesOnlyEntries } from '../src/domain/plan';
 import { recognizeSheet, RecognitionError } from '../src/recognition/claude';
 import { prepareImage } from '../src/recognition/image';
 import { detectStep, matchKey } from '../src/clicktt/page';
@@ -129,10 +130,17 @@ async function continueLineup(pending: PendingFill, bar: StatusBar): Promise<voi
   for (const side of ['home', 'guest'] as const) {
     if (!pending.plan.doubles[side]) problems.push(`${SIDE_LABEL[side]}: Doppel bitte selbst wählen`);
   }
-  for (const entry of [...pending.plan.lineup.home, ...pending.plan.lineup.guest]) {
-    if (!entry.player || !entry.uncertain) continue;
-    const row = sections.flatMap((s) => s.rows).find((r) => r.player === entry.player);
-    if (row) markField(row.positionSelect, `Matchblatt: „${entry.writtenName}“ – bitte prüfen`);
+  for (const section of sections) {
+    const plan = pending.plan;
+    const uncertain = [
+      ...plan.lineup[section.side].map((entry) => ({ entry, doublesOnly: false })),
+      ...doublesOnlyEntries(plan, section.side).map((entry) => ({ entry, doublesOnly: true })),
+    ].filter(({ entry }) => entry.player && entry.uncertain);
+    for (const { entry, doublesOnly } of uncertain) {
+      const row = section.rows.find((r) => r.player === entry.player);
+      const field = doublesOnly ? row?.doublesSelect : row?.positionSelect;
+      if (field) markField(field, `Matchblatt: „${entry.writtenName}“ – bitte prüfen`);
+    }
   }
 
   await savePending({ ...pending, phase: 'results' });
@@ -173,20 +181,7 @@ async function fillResultsStep(pending: PendingFill, bar: StatusBar): Promise<vo
   // Loaded upfront: on submit the page unloads, so only a single write can be issued there.
   const learned = await loadLearnedNames();
   getResultsForm(document)?.addEventListener('submit', () => {
-    learnNames(learned, pending.plan, readChosenPlayers(rows));
+    learnFromChoices(learned, pending.plan, readChosenPlayers(rows));
     void saveLearnedNames(learned);
   });
-}
-
-/** Remembers which click-tt player the user confirmed for each handwritten name. */
-function learnNames(learned: LearnedNames, plan: FillPlan, chosen: ReturnType<typeof readChosenPlayers>): void {
-  for (const side of ['home', 'guest'] as const) {
-    const positions = side === 'home' ? HOME_POSITIONS : GUEST_POSITIONS;
-    const teamLearned = (learned[learnedKey(plan.teamNames[side])] ??= {});
-    for (const position of positions) {
-      const written = plan.lineup[side].find((e) => e.position === position)?.writtenName;
-      const player = chosen[side][position];
-      if (written && player) teamLearned[learnedKey(written)] = player;
-    }
-  }
 }

@@ -7,8 +7,6 @@ import { z } from 'zod';
  */
 
 const positionEnum = z.enum(['A', 'B', 'C', 'X', 'Y', 'Z']);
-const homePositionEnum = z.enum(['A', 'B', 'C']);
-const guestPositionEnum = z.enum(['X', 'Y', 'Z']);
 const sideOrNone = z.enum(['none', 'home', 'guest']);
 
 export const sheetPlayerSchema = z.object({
@@ -23,6 +21,22 @@ export const sheetPlayerSchema = z.object({
     .describe(
       'Exact name from the candidate list of this team that the written name refers to, or null if no candidate fits confidently.',
     ),
+  nameUncertain: z.boolean().describe('True if the handwriting or the roster match is uncertain.'),
+});
+
+export const sheetDoublesPlayerSchema = z.object({
+  position: positionEnum
+    .nullable()
+    .describe(
+      'Singles position of this doubles player if he/she also plays singles (written as position letter or as the name of a singles player of the same team); null for a player who plays only doubles.',
+    ),
+  writtenName: z
+    .string()
+    .describe('Name written in the doubles field (final, not crossed out). Empty string if only a position letter is written.'),
+  rosterMatch: z
+    .string()
+    .nullable()
+    .describe('For a doubles-only player: exact name from the candidate list of this team, or null. Null otherwise.'),
   nameUncertain: z.boolean().describe('True if the handwriting or the roster match is uncertain.'),
 });
 
@@ -50,8 +64,10 @@ export const sheetSchema = z.object({
   homeTeam: z.string().describe('Handwritten home team ("Heimmannschaft").'),
   guestTeam: z.string().describe('Handwritten guest team ("Gastmannschaft").'),
   players: z.array(sheetPlayerSchema).describe('Exactly six entries: positions A, B, C, X, Y, Z.'),
-  homeDoubles: z.array(homePositionEnum).describe('Positions of the two home doubles players ("Doppelspieler").'),
-  guestDoubles: z.array(guestPositionEnum).describe('Positions of the two guest doubles players.'),
+  homeDoubles: z
+    .array(sheetDoublesPlayerSchema)
+    .describe('The two home doubles players ("1./2. Doppelspieler"), in written order.'),
+  guestDoubles: z.array(sheetDoublesPlayerSchema).describe('The two guest doubles players, in written order.'),
   games: z.array(sheetGameSchema).describe('Exactly ten entries, games 1 to 10 in printed order.'),
   totalHome: z.number().int().nullable().describe('Home total in the "Punkte" column, null if empty.'),
   totalGuest: z.number().int().nullable().describe('Guest total in the "Punkte" column, null if empty.'),
@@ -60,5 +76,6 @@ export const sheetSchema = z.object({
 
 export type RecognizedSheet = z.infer<typeof sheetSchema>;
 export type RecognizedPlayer = z.infer<typeof sheetPlayerSchema>;
+export type RecognizedDoublesPlayer = z.infer<typeof sheetDoublesPlayerSchema>;
 export type RecognizedGame = z.infer<typeof sheetGameSchema>;
 export type RecognizedSet = z.infer<typeof sheetSetSchema>;

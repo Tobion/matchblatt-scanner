@@ -9,8 +9,8 @@
     { "position": "Y", "writtenName": "Fabian", "crossedOutNames": ["Oli"], "rosterMatch": null, "nameUncertain": false },
     { "position": "Z", "writtenName": "Oli", "crossedOutNames": ["Fabian"], "rosterMatch": null, "nameUncertain": false }
   ],
-  "homeDoubles": ["A", "C"],
-  "guestDoubles": ["X", "Z"],
+  "homeDoubles": [{ "position": "A", "writtenName": "", "rosterMatch": null, "nameUncertain": false }, { "position": "C", "writtenName": "", "rosterMatch": null, "nameUncertain": false }],
+  "guestDoubles": [{ "position": "X", "writtenName": "", "rosterMatch": null, "nameUncertain": false }, { "position": "Z", "writtenName": "", "rosterMatch": null, "nameUncertain": false }],
   "games": [
     { "number": 1, "sets": [{ "home": 11, "guest": 5, "uncertain": false }, { "home": 11, "guest": 3, "uncertain": false }, { "home": 11, "guest": 13, "uncertain": false }, { "home": 11, "guest": 3, "uncertain": false }], "walkoverLoser": "none", "retiredSide": "none", "setsWonHome": 3, "setsWonGuest": 1, "winnerWritten": "Dane" },
     { "number": 2, "sets": [{ "home": 11, "guest": 9, "uncertain": false }, { "home": 11, "guest": 0, "uncertain": false }, { "home": 14, "guest": 12, "uncertain": false }], "walkoverLoser": "none", "retiredSide": "none", "setsWonHome": 3, "setsWonGuest": 0, "winnerWritten": "Tim" },

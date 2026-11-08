@@ -1,6 +1,6 @@
 import { positionsOf, type Rosters, type Side } from '../domain/model';
 import { normalizeName, stripRankPrefix } from '../domain/names';
-import { doublesPlayers, type FillPlan } from '../domain/plan';
+import { doublesOnlyEntries, doublesPlayers, requiredPlayers, type FillPlan } from '../domain/plan';
 import { collapse, findSubmitButton } from './page';
 
 /** Step 1 "Mannschaftsaufstellung": one team block of the lineup form. */
@@ -108,21 +108,20 @@ export type LineupAction =
  */
 export function nextLineupAction(sections: LineupSection[], plan: FillPlan): LineupAction {
   for (const section of sections) {
-    const entries = plan.lineup[section.side];
+    const required = requiredPlayers(plan, section.side);
     // Only remove players if every sheet name is resolved; otherwise an
     // unresolved name might refer to one of the pre-selected players.
-    if (!section.deleteButton || entries.some((e) => !e.player)) continue;
-    const wanted = entries.map((e) => e.player!);
-    const surplus = section.rows.filter((r) => !wanted.some((w) => samePlayer(w, r.player)));
+    if (!section.deleteButton || !required.complete) continue;
+    const surplus = section.rows.filter((r) => !required.players.some((w) => samePlayer(w, r.player)));
     if (surplus.length && surplus.every((r) => r.deleteCheckbox)) {
       return { kind: 'delete', side: section.side, rows: surplus, button: section.deleteButton };
     }
   }
   for (const section of sections) {
     if (!section.insertButton) continue;
-    const missing = plan.lineup[section.side]
-      .map((e) => e.player)
-      .filter((p): p is string => !!p && !section.rows.some((r) => samePlayer(r.player, p)));
+    const missing = requiredPlayers(plan, section.side).players.filter(
+      (p) => !section.rows.some((r) => samePlayer(r.player, p)),
+    );
     const options = listEntries(section.list)
       .filter((entry) => missing.some((m) => samePlayer(m, entry.player)))
       .map((entry) => entry.option);
@@ -142,7 +141,7 @@ export function performReloadingAction(action: Exclude<LineupAction, { kind: 'as
 }
 
 export interface AssignResult {
-  /** Positions on the sheet whose player is not (yet) in the lineup table. */
+  /** Sheet players (position, or "Doppel" for doubles-only) not (yet) in the lineup table. */
   missing: { side: Side; position: string; writtenName: string; player: string | null }[];
 }
 
@@ -163,12 +162,12 @@ export function assignPositions(sections: LineupSection[], plan: FillPlan): Assi
         setSelectValue(row.doublesSelect, inDoubles ? firstRealOptionValue(row.doublesSelect) : NO_SELECTION);
       }
     }
-    for (const entry of entries) {
+    for (const entry of [...entries, ...doublesOnlyEntries(plan, section.side)]) {
       const present = entry.player && section.rows.some((r) => samePlayer(r.player, entry.player!));
       if (!present) {
         result.missing.push({
           side: section.side,
-          position: entry.position,
+          position: entry.position ?? 'Doppel',
           writtenName: entry.writtenName,
           player: entry.player,
         });

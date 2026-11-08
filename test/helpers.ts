@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { Rosters } from '../src/domain/model';
 import { buildFillPlan, type FillPlan } from '../src/domain/plan';
-import { sheetSchema, type RecognizedSheet } from '../src/recognition/schema';
+import { sheetSchema, type RecognizedDoublesPlayer, type RecognizedSheet } from '../src/recognition/schema';
 
 const root = resolve(dirname(import.meta.filename), '..') + '/';
 
@@ -56,4 +56,13 @@ export function fixtureRosters(): Rosters {
       ],
     },
   };
+}
+
+/** Doubles entries: a position letter or a doubles-only player given as [writtenName, rosterMatch]. */
+export function doubles(...players: (string | [string, string | null])[]): RecognizedDoublesPlayer[] {
+  return players.map((p) =>
+    typeof p === 'string'
+      ? { position: p as RecognizedDoublesPlayer['position'], writtenName: '', rosterMatch: null, nameUncertain: false }
+      : { position: null, writtenName: p[0], rosterMatch: p[1], nameUncertain: false },
+  );
 }

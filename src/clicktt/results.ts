@@ -1,7 +1,8 @@
 import { GAME_ORDER, MAX_SETS, gameLabel, type Position, type Side } from '../domain/model';
 import { normalizeName } from '../domain/names';
-import { doublesPlayers, playerAt, type FillPlan, type GamePlan } from '../domain/plan';
+import { playerAt, type FillPlan, type GamePlan } from '../domain/plan';
 import { formatSet } from '../domain/validate';
+import type { ChosenPlayers } from '../domain/learn';
 import { collapse, selectedOptionText } from './page';
 
 /** Step 2 "Erfassung": one game row of the result table. */
@@ -73,13 +74,9 @@ export function fillResults(rows: ResultRow[], plan: FillPlan): FieldMark[] {
 
 function expectedPlayers(game: GamePlan, plan: FillPlan, side: Side): ({ player: string | null; written: string } | null)[] {
   if (game.definition.kind === 'doubles') {
-    const positions = plan.doubles[side];
-    const players = doublesPlayers(plan, side);
-    if (!positions || !players) return [null, null];
-    return positions.map((pos, i) => ({
-      player: players[i] ?? null,
-      written: playerAt(plan, side, pos)?.writtenName ?? '',
-    }));
+    const entries = plan.doubles[side];
+    if (!entries) return [null, null];
+    return entries.map((e) => ({ player: e.player, written: e.writtenName }));
   }
   const position: Position = side === 'home' ? game.definition.home : game.definition.guest;
   const entry = playerAt(plan, side, position);
@@ -90,6 +87,8 @@ function checkPlayers(row: ResultRow, game: GamePlan, plan: FillPlan, marks: Fie
   for (const side of ['home', 'guest'] as const) {
     const selects = side === 'home' ? row.homePlayers : row.guestPlayers;
     const expected = expectedPlayers(game, plan, side);
+    // click-tt may list the two doubles players in another order than the sheet.
+    if (selects.length === 2 && expected.length === 2 && sameSet(selects, expected)) continue;
     selects.forEach((select, i) => {
       const want = expected[i];
       if (!want) {
@@ -109,6 +108,12 @@ function checkPlayers(row: ResultRow, game: GamePlan, plan: FillPlan, marks: Fie
       marks.push({ element: select, message: `Laut Matchblatt: ${want.player} („${want.written}“)` });
     });
   }
+}
+
+function sameSet(selects: HTMLSelectElement[], expected: ({ player: string | null } | null)[]): boolean {
+  const chosen = selects.map((s) => normalizeName(selectedOptionText(s))).sort();
+  const wanted = expected.map((e) => (e?.player ? normalizeName(e.player) : '?')).sort();
+  return chosen.join('|') === wanted.join('|');
 }
 
 function fillFlags(row: ResultRow, game: GamePlan): void {
@@ -140,16 +145,21 @@ function setValue(element: HTMLInputElement | HTMLSelectElement, value: string):
   element.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-/** Players chosen per position in the singles rows (used to learn name mappings). */
-export function readChosenPlayers(rows: ResultRow[]): Record<Side, Partial<Record<Position, string>>> {
-  const chosen: Record<Side, Partial<Record<Position, string>>> = { home: {}, guest: {} };
+/** Players chosen in the result table (used to learn name mappings). */
+export function readChosenPlayers(rows: ResultRow[]): ChosenPlayers {
+  const chosen: ChosenPlayers = { singles: { home: {}, guest: {} }, doubles: { home: [], guest: [] } };
   for (const row of rows) {
     const game = GAME_ORDER[row.index];
-    if (!game || game.kind !== 'singles') continue;
+    if (!game) continue;
+    if (game.kind === 'doubles') {
+      chosen.doubles.home = row.homePlayers.filter(isRealPlayerOption).map(selectedOptionText);
+      chosen.doubles.guest = row.guestPlayers.filter(isRealPlayerOption).map(selectedOptionText);
+      continue;
+    }
     const home = row.homePlayers[0];
     const guest = row.guestPlayers[0];
-    if (home && isRealPlayerOption(home)) chosen.home[game.home] ??= selectedOptionText(home);
-    if (guest && isRealPlayerOption(guest)) chosen.guest[game.guest] ??= selectedOptionText(guest);
+    if (home && isRealPlayerOption(home)) chosen.singles.home[game.home] ??= selectedOptionText(home);
+    if (guest && isRealPlayerOption(guest)) chosen.singles.guest[game.guest] ??= selectedOptionText(guest);
   }
   return chosen;
 }
