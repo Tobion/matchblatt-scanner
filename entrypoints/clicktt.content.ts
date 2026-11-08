@@ -34,7 +34,7 @@ export default defineContentScript({
   matches: ['*://click-tt.ch/cgi-bin/WebObjects/nuLigaTTCH.woa/*', '*://*.click-tt.ch/cgi-bin/WebObjects/nuLigaTTCH.woa/*'],
   runAt: 'document_idle',
   main() {
-    void run().catch((error) => console.error('[Matchblatt-Foto]', error));
+    void run().catch((error) => console.error('[Matchblatt-Scanner]', error));
   },
 });
 

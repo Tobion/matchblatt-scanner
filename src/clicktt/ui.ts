@@ -31,7 +31,7 @@ export function mountStatusBar(doc: Document): StatusBar {
   const top = doc.createElement('div');
   top.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap';
   const title = doc.createElement('strong');
-  title.textContent = 'Matchblatt-Foto';
+  title.textContent = 'Matchblatt-Scanner';
   const button = doc.createElement('button');
   button.type = 'button';
   button.textContent = 'Foto einlesen…';

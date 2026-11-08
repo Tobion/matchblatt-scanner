@@ -1,5 +1,5 @@
 {
-  "name": "tt-foto-matcherfassung",
+  "name": "matchblatt-scanner",
   "description": "Reads a photo of a Swiss table tennis team match sheet and fills in the click-tt result entry forms.",
   "version": "0.1.0",
   "private": true,

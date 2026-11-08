@@ -4,14 +4,14 @@ export default defineConfig({
   // Browsers are started manually (WSL cannot launch the Windows browser).
   webExt: { disabled: true },
   manifest: {
-    name: 'Matchblatt-Foto für click-tt',
+    name: 'Matchblatt-Scanner',
     description:
-      'Liest ein Foto des Tischtennis-Matchblatts (Mannschaftsmeisterschaft) und trägt Aufstellung und Resultate in click-tt ein.',
+      'Matchblatt fotografieren – Aufstellung und Resultate der Tischtennis-Mannschaftsmeisterschaft automatisch in click-tt erfassen.',
     permissions: ['storage'],
     host_permissions: ['https://api.anthropic.com/*'],
-    action: { default_title: 'Matchblatt-Foto – Einstellungen' },
+    action: { default_title: 'Matchblatt-Scanner – Einstellungen' },
     browser_specific_settings: {
-      gecko: { id: 'matchblatt-foto@tt-foto-matcherfassung', data_collection_permissions: { required: ['none'] } },
+      gecko: { id: 'matchblatt-scanner@matchblatt-scanner', data_collection_permissions: { required: ['none'] } },
     },
   },
   hooks: {

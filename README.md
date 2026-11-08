@@ -1,4 +1,6 @@
-# Matchblatt-Foto für click-tt
+# Matchblatt-Scanner
+
+Matchblatt fotografieren – Resultate automatisch in click-tt erfassen.
 
 Browser-Erweiterung (Chrome, Edge, Firefox): Foto des ausgefüllten Matchblatts der Mannschaftsmeisterschaft
 auswählen → Aufstellung und Satzresultate werden automatisch in click-tt eingetragen. Prüfen und bestätigen
@@ -44,7 +46,7 @@ Zeigt Dauer, Token-Verbrauch, Plausibilitätsprobleme und Abweichungen zur manue
 ### Erweiterung im Browser laden
 
 Der Build-Ordner liegt in WSL; Windows erreicht ihn z.B. über
-`\\wsl$\Ubuntu\home\tobion\tt-foto-matcherfassung\.output\chrome-mv3`.
+`\\wsl$\Ubuntu\home\tobion\matchblatt-scanner\.output\chrome-mv3`.
 
 **Chrome/Edge:** `chrome://extensions` → Entwicklermodus ein → „Entpackte Erweiterung laden“ → Build-Ordner
 wählen. Nach jedem neuen Build bei der Erweiterung auf ↻ klicken und die Seite neu laden.

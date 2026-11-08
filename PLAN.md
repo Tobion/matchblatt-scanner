@@ -1,4 +1,4 @@
-# Plan: Matchblatt-Foto → click-tt (Browser-Erweiterung)
+# Plan: Matchblatt-Scanner – Matchblatt-Foto → click-tt (Browser-Erweiterung)
 
 ## Context
 Resultate der Mannschaftsmeisterschaft werden auf Papier (Matchblatt) festgehalten und danach vom Heim-Captain manuell in click-tt.ch übertragen: Spieleraufstellung (Positionen A/B/C, X/Y/Z, Doppel) und alle Sätze der 10 Spiele. Ziel: Foto auswählen → Daten werden erkannt, geprüft und automatisch in die click-tt-Formulare eingetragen. Das Tool soll für alle interessierten Captains nutzbar sein, **ohne eigenen Server** (Datenschutz).
@@ -25,7 +25,7 @@ extension/
     read-roster.ts         # liest Spieler (aufgestellt + Liste) beider Teams aus Schritt 1
     fill-lineup.ts         # Schritt 1: Zustandsmaschine löschen → einfügen → Positionen/Doppel → Weiter
     fill-results.ts        # Schritt 2: Spieler-Dropdowns prüfen, Sätze, wo/ret, Spielende
-    launcher.ts            # Knopf „Matchblatt-Foto einlesen“ + Statuszeile (Shadow DOM), kein Review-UI
+    launcher.ts            # Knopf „Foto einlesen…“ + Statuszeile (Shadow DOM), kein Review-UI
     highlight.ts           # markiert unsichere/fehlende Felder auf der click-tt-Seite (Rahmen + Hinweistext)
   src/recognition/
     claude.ts              # API-Call (fetch, Header anthropic-dangerous-direct-browser-access)
@@ -43,7 +43,7 @@ Stack (entschieden: TypeScript statt JS/Rust): TypeScript, Vite + WXT (oder `vit
 
 ## Ablauf für den Nutzer
 1. In click-tt einloggen, Begegnung „erfassen“ wählen → Schritt 1.
-2. Knopf der Erweiterung auf der Seite: „Matchblatt-Foto einlesen“ → Datei wählen.
+2. Knopf der Erweiterung auf der Seite: „Foto einlesen…“ → Datei wählen.
 3. Erweiterung liest **zuerst die Kader beider Teams aus der Seite** (aufgestellt + Auswahlliste) und schickt Foto + Kandidatennamen an Claude → strukturiertes JSON → lokale Validierung + Namenszuordnung.
 4. **Schritt 1 direkt ausfüllen**: löschen/einfügen, Positionen, Doppel.
    - Alles eindeutig → automatisch „Weiter“.
