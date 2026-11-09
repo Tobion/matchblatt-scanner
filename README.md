@@ -40,7 +40,8 @@ ANTHROPIC_API_KEY=sk-ant-... npm run recognize -- fixtures/example_filled_matchr
 ```
 
 Zeigt Dauer, Token-Verbrauch, Plausibilitätsprobleme und Abweichungen zur manuellen Abschrift.
-Gemessen am Beispielfoto mit Claude Opus 5.5: ca. 16 s und rund 7 US-Cent pro Matchblatt. Optionen:
+Gemessen am Beispielfoto: Sonnet 5.5 (Standard) ca. 10 s und 3.5 US-Cent, fehlerfrei; Opus 5.5 ca. 16 s und
+7–8 US-Cent, fehlerfrei; Haiku 5.5 ca. 15 s und 0.3 US-Cent, zwei Satzresultate falsch. Optionen:
 `--model claude-sonnet-5-5`, `--effort low|medium|high`, `--rosters kader.json`. Das Ergebnis landet in
 `scripts/out/` (nicht im Git, enthält Namen).
 

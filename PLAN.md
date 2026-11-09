@@ -54,7 +54,7 @@ Stack (entschieden: TypeScript statt JS/Rust): TypeScript, Vite + WXT (oder `vit
 8. Lernen: Beim Verlassen von Schritt 2 werden die tatsächlich gewählten Spieler gelesen und die Zuordnung „Name auf Matchblatt → click-tt-Spieler“ lokal gespeichert (auch manuelle Korrekturen).
 
 ## Erkennung (Claude)
-- Modell in den Einstellungen wählbar: Default Claude Opus 5.5 (beste Handschrifterkennung), alternativ Sonnet 5.5 / Haiku 5.5 (günstiger); Gründlichkeit (effort) low/medium/high, Default medium. Offizielles SDK `@anthropic-ai/sdk` mit `dangerouslyAllowBrowser`, Structured Outputs (`betaZodOutputFormat`) und serverseitigem Refusal-Fallback (`fallbacks: "default"`).
+- Modell in den Einstellungen wählbar: Default Claude Sonnet 5.5 (am Beispielfoto fehlerfrei wie Opus, halb so teuer, schneller), alternativ Opus 5.5 / Haiku 5.5 (Haiku las zwei Sätze falsch, ohne sie als unsicher zu markieren); Gründlichkeit (effort) low/medium/high, Default medium. Offizielles SDK `@anthropic-ai/sdk` mit `dangerouslyAllowBrowser`, Structured Outputs (`betaZodOutputFormat`) und serverseitigem Refusal-Fallback (`fallbacks: "default"`).
 - Der API-Aufruf läuft im Content-Script (nicht im Service-Worker): MV3-Service-Worker können bei Antworten > 30 s beendet werden.
 - Ausgabe-Schema: `home/guest {team, players:{A,B,C}|{X,Y,Z} (gelesener Name, crossedOut[]), doubles:[pos,pos]}`, `games[10] {sets:[{home,guest}|null]×5, walkover?:'home'|'guest', retired?, winnerText, setsWon}`, `total`, `confidence` pro Feld, `notes`.
 - Kandidatennamen aus click-tt im Prompt → Modell darf zuordnen, finale Zuordnung trotzdem lokal validiert.

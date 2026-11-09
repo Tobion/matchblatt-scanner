@@ -3,7 +3,7 @@
  * compares it with a manual transcription.
  *
  *   ANTHROPIC_API_KEY=sk-ant-... npm run recognize -- fixtures/example_filled_matchresult.jpg \
- *     --expect test/data/example-sheet.json [--model claude-opus-5-5] [--effort medium] [--rosters rosters.json]
+ *     --expect test/data/example-sheet.json [--model claude-sonnet-5-5] [--effort medium] [--rosters rosters.json]
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname } from 'node:path';
