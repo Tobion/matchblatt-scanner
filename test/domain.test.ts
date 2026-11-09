@@ -157,3 +157,15 @@ describe('buildFillPlan with the example sheet', () => {
     });
   });
 });
+
+describe('API key input', () => {
+  it('cleans pasted keys', async () => {
+    const { cleanApiKey, looksLikeApiKey } = await import('../src/recognition/claude');
+    const key = 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789';
+    expect(cleanApiKey(` ${key}\n`)).toBe(key);
+    expect(cleanApiKey(`ANTHROPIC_API_KEY=${key}`)).toBe(key);
+    expect(cleanApiKey(`export ANTHROPIC_API_KEY="${key}"`)).toBe(key);
+    expect(looksLikeApiKey(key)).toBe(true);
+    expect(looksLikeApiKey('mein-passwort')).toBe(false);
+  });
+});

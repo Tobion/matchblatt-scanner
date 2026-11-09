@@ -10,7 +10,9 @@
       input, select { width: 100%; padding: 6px; margin-top: 4px; box-sizing: border-box; font: inherit; }
       button { margin-top: 20px; padding: 8px 16px; font: inherit; cursor: pointer; }
       .hint { color: #555; font-size: 13px; }
-      #saved { color: #2e7d32; margin-left: 12px; }
+      #saved, .ok { color: #2e7d32; margin-left: 12px; }
+      .error { color: #c62828; margin-left: 12px; }
+      #testKey { margin-top: 8px; padding: 4px 12px; }
       section { margin-top: 28px; padding-top: 12px; border-top: 1px solid #ddd; }
     </style>
   </head>
@@ -24,7 +26,9 @@
 
     <form id="settings">
       <label for="apiKey">Claude-API-Key</label>
-      <input id="apiKey" type="password" autocomplete="off" placeholder="sk-ant-…" />
+      <input id="apiKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="sk-ant-…" />
+      <div class="hint" id="keyInfo"></div>
+      <button type="button" id="testKey">Key testen</button><span id="testResult"></span>
       <div class="hint">
         Erstellen unter <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">platform.claude.com</a>.
         Der Key wird nur lokal in diesem Browser gespeichert.

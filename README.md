@@ -58,6 +58,10 @@ Ordner `.output/firefox-mv2` wählen (bleibt bis zum Neustart von Firefox).
 
 Danach auf das Symbol der Erweiterung klicken und den Claude-API-Key eintragen.
 
+**Hinweis:** Anthropic lässt Anfragen aus dem Browser nicht zu, wenn die Organisation des API-Keys eine
+besondere Datenaufbewahrung eingestellt hat (z.B. „Zero Data Retention“). Dann einen Key aus einer
+Organisation mit Standard-Einstellungen verwenden. „Key testen“ in den Einstellungen zeigt das sofort an.
+
 ### Sicher ausprobieren
 
 1. **Lokal:** `npm run build:dev` + `npm run serve:fixtures`, den Ordner `.output/chrome-mv3-dev` laden und

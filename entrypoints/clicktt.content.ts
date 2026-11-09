@@ -3,7 +3,8 @@ import { browser } from 'wxt/browser';
 import type { Side } from '../src/domain/model';
 import { learnFromChoices } from '../src/domain/learn';
 import { buildFillPlan, doublesOnlyEntries } from '../src/domain/plan';
-import { recognizeSheet, RecognitionError } from '../src/recognition/claude';
+import { RecognitionError } from '../src/recognition/errors';
+import { requestRecognition } from '../src/recognition/client';
 import { prepareImage } from '../src/recognition/image';
 import { detectStep, matchKey } from '../src/clicktt/page';
 import {
@@ -85,10 +86,7 @@ async function startFromPhoto(file: File, key: string, bar: StatusBar): Promise<
 
     bar.setStatus('busy', 'Foto wird ausgewertet… (kann bis zu einer Minute dauern)');
     const image = await prepareImage(file);
-    const { sheet } = await recognizeSheet(
-      { imageBase64: image.base64, mediaType: image.mediaType, rosters },
-      { apiKey: settings.apiKey, model: settings.model, effort: settings.effort },
-    );
+    const { sheet } = await requestRecognition({ imageBase64: image.base64, mediaType: image.mediaType, rosters });
     const plan = buildFillPlan(sheet, rosters, await loadLearnedNames());
     const pending: PendingFill = { matchKey: key, plan, phase: 'lineup', lineupActions: 0, createdAt: Date.now() };
     await savePending(pending);
