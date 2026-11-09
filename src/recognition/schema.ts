@@ -71,7 +71,11 @@ export const sheetSchema = z.object({
   games: z.array(sheetGameSchema).describe('Exactly ten entries, games 1 to 10 in printed order.'),
   totalHome: z.number().int().nullable().describe('Home total in the "Punkte" column, null if empty.'),
   totalGuest: z.number().int().nullable().describe('Guest total in the "Punkte" column, null if empty.'),
-  notes: z.string().describe('Anything unusual worth telling the user (corrections, unreadable areas). Empty if none.'),
+  notes: z
+    .string()
+    .describe(
+      'Only things the captain must check personally: unreadable or contradictory areas, or text in the "Bemerkungen" field. Do not repeat corrections, walkovers, header data or missing candidate lists. Empty string if nothing.',
+    ),
 });
 
 export type RecognizedSheet = z.infer<typeof sheetSchema>;

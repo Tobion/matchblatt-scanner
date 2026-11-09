@@ -39,7 +39,8 @@ ANTHROPIC_API_KEY=sk-ant-... npm run recognize -- fixtures/example_filled_matchr
   --expect test/data/example-sheet.json
 ```
 
-Zeigt Dauer, Token-Verbrauch, Plausibilitätsprobleme und Abweichungen zur manuellen Abschrift. Optionen:
+Zeigt Dauer, Token-Verbrauch, Plausibilitätsprobleme und Abweichungen zur manuellen Abschrift.
+Gemessen am Beispielfoto mit Claude Opus 5.5: ca. 16 s und rund 7 US-Cent pro Matchblatt. Optionen:
 `--model claude-sonnet-5-5`, `--effort low|medium|high`, `--rosters kader.json`. Das Ergebnis landet in
 `scripts/out/` (nicht im Git, enthält Namen).
 
