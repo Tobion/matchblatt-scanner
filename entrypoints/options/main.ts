@@ -1,4 +1,4 @@
-import { MODEL_CHOICES, loadSettings, saveLearnedNames, saveSettings, type Settings } from '../../src/settings';
+import { MODEL_CHOICES, loadLearnedNames, loadSettings, saveLearnedNames, saveSettings, type Settings } from '../../src/settings';
 import { cleanApiKey, looksLikeApiKey, verifyApiKey, type Effort } from '../../src/recognition/claude';
 
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -63,7 +63,55 @@ byId<HTMLButtonElement>('testKey').addEventListener('click', async () => {
   }
 });
 
-byId<HTMLButtonElement>('forgetNames').addEventListener('click', async () => {
+const learnedList = byId<HTMLDivElement>('learnedNames');
+const forgetAll = byId<HTMLButtonElement>('forgetNames');
+
+/** Lists the learned mappings per team (names as stored: normalized, without umlauts). */
+async function renderLearnedNames(): Promise<void> {
+  const learned = await loadLearnedNames();
+  const teams = Object.entries(learned)
+    .filter(([, names]) => Object.keys(names).length)
+    .sort(([a], [b]) => a.localeCompare(b));
+  forgetAll.hidden = !teams.length;
+  if (!teams.length) {
+    learnedList.innerHTML = '<p class="hint">Noch keine Zuordnungen gelernt.</p>';
+    return;
+  }
+
+  learnedList.replaceChildren(
+    ...teams.flatMap(([team, names]) => {
+      const heading = document.createElement('h3');
+      heading.textContent = team;
+      const table = document.createElement('table');
+      table.className = 'names';
+      table.innerHTML = '<tr><th>Auf dem Matchblatt</th><th>click-tt-Spieler</th><th></th></tr>';
+      for (const [written, player] of Object.entries(names).sort(([a], [b]) => a.localeCompare(b))) {
+        const row = table.insertRow();
+        row.insertCell().textContent = written;
+        row.insertCell().textContent = player;
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.textContent = 'Löschen';
+        remove.addEventListener('click', async () => {
+          const current = await loadLearnedNames();
+          if (current[team]) {
+            delete current[team][written];
+            if (!Object.keys(current[team]).length) delete current[team];
+          }
+          await saveLearnedNames(current);
+          await renderLearnedNames();
+        });
+        row.insertCell().append(remove);
+      }
+      return [heading, table];
+    }),
+  );
+}
+
+forgetAll.addEventListener('click', async () => {
+  if (!confirm('Alle gelernten Namenszuordnungen löschen?')) return;
   await saveLearnedNames({});
-  byId<HTMLSpanElement>('forgotten').textContent = ' Gelöscht.';
+  await renderLearnedNames();
 });
+
+await renderLearnedNames();

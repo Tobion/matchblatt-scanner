@@ -14,6 +14,11 @@
       .error { color: #c62828; margin-left: 12px; }
       #testKey { margin-top: 8px; padding: 4px 12px; }
       section { margin-top: 28px; padding-top: 12px; border-top: 1px solid #ddd; }
+      h3 { font-size: 15px; margin: 16px 0 4px; }
+      table.names { border-collapse: collapse; width: 100%; }
+      table.names th, table.names td { text-align: left; padding: 3px 8px 3px 0; border-bottom: 1px solid #eee; }
+      table.names th { font-weight: 600; color: #555; font-size: 13px; }
+      table.names button { margin: 0; padding: 1px 8px; font-size: 13px; }
     </style>
   </head>
   <body>
@@ -55,7 +60,17 @@
         keine Analyse und kein Tracking. Zuordnungen von Namen auf dem Matchblatt zu click-tt-Spielern werden nur
         lokal gespeichert.
       </p>
-      <button type="button" id="forgetNames">Gelernte Namenszuordnungen löschen</button><span id="forgotten"></span>
+    </section>
+
+    <section>
+      <h2>Gelernte Namenszuordnungen</h2>
+      <p class="hint">
+        Beim Bestätigen der Resultate merkt sich die Erweiterung, welcher click-tt-Spieler zu einem Namen auf dem
+        Matchblatt gehört, und wählt ihn beim nächsten Mal automatisch. Namen, die auf mehrere Spieler passen, werden
+        nie automatisch zugeordnet.
+      </p>
+      <div id="learnedNames"></div>
+      <button type="button" id="forgetNames">Alle löschen</button>
     </section>
 
     <script type="module" src="./main.ts"></script>
