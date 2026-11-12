@@ -95,9 +95,10 @@ function checkPlayers(row: ResultRow, game: GamePlan, plan: FillPlan, marks: Fie
     const selects = side === 'home' ? row.homePlayers : row.guestPlayers;
     const expected = expectedPlayers(game, plan, side);
     // click-tt may list the two doubles players in another order than the sheet.
-    if (selects.length === 2 && expected.length === 2 && sameSet(selects, expected)) continue;
+    if (selects.length === 2 && expected.length === 2 && fitsInAnyOrder(selects, expected)) continue;
     selects.forEach((select, i) => {
-      const want = expected[i];
+      const want = expected[i] ?? null;
+      if (fits(selectedOptionText(select), want)) return;
       if (!want) {
         marks.push({ element: select, message: 'Spieler auf dem Matchblatt nicht erkannt – bitte prüfen' });
         return;
@@ -109,7 +110,6 @@ function checkPlayers(row: ResultRow, game: GamePlan, plan: FillPlan, marks: Fie
         marks.push({ element: select, message });
         return;
       }
-      if (normalizeName(selectedOptionText(select)) === normalizeName(want.player)) return;
       const option = [...select.options].find((o) => normalizeName(o.textContent ?? '') === normalizeName(want.player!));
       if (option) {
         select.value = option.value;
@@ -120,10 +120,21 @@ function checkPlayers(row: ResultRow, game: GamePlan, plan: FillPlan, marks: Fie
   }
 }
 
-function sameSet(selects: HTMLSelectElement[], expected: ({ player: string | null } | null)[]): boolean {
-  const chosen = selects.map((s) => normalizeName(selectedOptionText(s))).sort();
-  const wanted = expected.map((e) => (e?.player ? normalizeName(e.player) : '?')).sort();
-  return chosen.join('|') === wanted.join('|');
+/**
+ * Whether the selected player matches the sheet: the resolved player, or for
+ * an ambiguous name one of its candidates (the user picked one in step 1).
+ */
+function fits(selected: string, want: ExpectedPlayer | null): boolean {
+  if (!want) return false;
+  const name = normalizeName(selected);
+  if (want.player) return name === normalizeName(want.player);
+  return want.alternatives.some((candidate) => normalizeName(candidate) === name);
+}
+
+function fitsInAnyOrder(selects: HTMLSelectElement[], expected: (ExpectedPlayer | null)[]): boolean {
+  const [a, b] = selects.map(selectedOptionText) as [string, string];
+  const [x, y] = expected as [ExpectedPlayer | null, ExpectedPlayer | null];
+  return (fits(a, x) && fits(b, y)) || (fits(a, y) && fits(b, x));
 }
 
 function fillFlags(row: ResultRow, game: GamePlan): void {

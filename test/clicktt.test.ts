@@ -8,7 +8,7 @@ import {
 } from '../src/clicktt/lineup';
 import { detectStep, matchKey } from '../src/clicktt/page';
 import { fillResults, readChosenPlayers, readResultRows } from '../src/clicktt/results';
-import { buildFillPlan } from '../src/domain/plan';
+import { buildFillPlan, type FillPlan } from '../src/domain/plan';
 import { doubles, exampleSheet, fixturePlan, loadPage } from './helpers';
 
 describe('page detection', () => {
@@ -228,6 +228,24 @@ describe('step 2: results', () => {
       }),
     );
     expect(marks).toEqual([]);
+  });
+
+  it('accepts a player chosen in step 1 for an ambiguous name', () => {
+    const rows = readResultRows(page());
+    const ambiguous = (sheetPlan: FillPlan, alternatives: string[]) => {
+      const entry = sheetPlan.lineup.home.find((e) => e.position === 'C')!;
+      Object.assign(entry, { player: null, uncertain: true, alternatives });
+      // The doubles entry of position C refers to the same singles player.
+      Object.assign(sheetPlan.doubles.home![1]!, { player: null, uncertain: true, alternatives });
+      return sheetPlan;
+    };
+    // The saved page has "Reckel, Jim" at C (also in the doubles).
+    expect(fillResults(rows, ambiguous(plan(), ['Gabriel, Jim', 'Reckel, Jim']))).toEqual([]);
+
+    const marks = fillResults(readResultRows(page()), ambiguous(plan(), ['Gabriel, Jim', 'Weber, Jim']));
+    expect(marks.map((m) => m.message)).toContain(
+      'Matchblatt: „Tobias“ passt auf mehrere Spieler (Gabriel, Jim / Weber, Jim) – bitte Spieler wählen',
+    );
   });
 
   it('expects a doubles-only player in the doubles row', () => {
