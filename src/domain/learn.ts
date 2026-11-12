@@ -1,6 +1,13 @@
 import { positionsOf, type Position, type Side } from './model';
 import { normalizeName } from './names';
-import { doublesOnlyEntries, learnedKey, type FillPlan, type LearnedNames } from './plan';
+import {
+  doublesOnlyEntries,
+  learnedKey,
+  type DoublesEntry,
+  type FillPlan,
+  type LearnedNames,
+  type LineupEntry,
+} from './plan';
 
 /** Players the user finally selected in click-tt (step 2). */
 export interface ChosenPlayers {
@@ -10,14 +17,26 @@ export interface ChosenPlayers {
   doubles: Record<Side, string[]>;
 }
 
-/** Remembers which click-tt player belongs to each handwritten name (mutates `learned`). */
+/**
+ * Remembers corrections (mutates `learned`): a handwritten name is only stored
+ * if the user chose a different player than proposed, or filled in a name that
+ * could not be resolved. Names that fit several roster players are skipped, as
+ * learned mappings are never used for them.
+ */
 export function learnFromChoices(learned: LearnedNames, plan: FillPlan, chosen: ChosenPlayers): void {
   for (const side of ['home', 'guest'] as const) {
-    const teamLearned = (learned[learnedKey(plan.teamNames[side])] ??= {});
+    const corrections: Record<string, string> = {};
+    const learn = (entry: LineupEntry | DoublesEntry | undefined, player: string | undefined) => {
+      if (!entry?.writtenName || !player || entry.alternatives.length) return;
+      if (entry.player && normalizeName(entry.player) === normalizeName(player)) return;
+      corrections[learnedKey(entry.writtenName)] = player;
+    };
+
     for (const position of positionsOf(side)) {
-      const written = plan.lineup[side].find((e) => e.position === position)?.writtenName;
-      const player = chosen.singles[side][position];
-      if (written && player) teamLearned[learnedKey(written)] = player;
+      learn(
+        plan.lineup[side].find((e) => e.position === position),
+        chosen.singles[side][position],
+      );
     }
 
     // A doubles-only player is the doubles player who plays no singles; only
@@ -25,8 +44,10 @@ export function learnFromChoices(learned: LearnedNames, plan: FillPlan, chosen: 
     const doublesOnly = doublesOnlyEntries(plan, side);
     const singlesPlayers = Object.values(chosen.singles[side]).map(normalizeName);
     const extra = chosen.doubles[side].filter((p) => !singlesPlayers.includes(normalizeName(p)));
-    if (doublesOnly.length === 1 && extra.length === 1 && doublesOnly[0]!.writtenName) {
-      teamLearned[learnedKey(doublesOnly[0]!.writtenName)] = extra[0]!;
+    if (doublesOnly.length === 1 && extra.length === 1) learn(doublesOnly[0], extra[0]);
+
+    if (Object.keys(corrections).length) {
+      Object.assign((learned[learnedKey(plan.teamNames[side])] ??= {}), corrections);
     }
   }
 }

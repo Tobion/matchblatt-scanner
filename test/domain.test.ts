@@ -184,19 +184,35 @@ describe('buildFillPlan with the example sheet', () => {
     expect(buildFillPlan(sheet, rosters).warnings).toEqual(['Gast: Doppelspieler konnten nicht eindeutig gelesen werden.']);
   });
 
-  it('learns singles names and an unambiguous doubles-only name', () => {
+  it('learns only corrections and filled-in names', () => {
     const sheet = exampleSheet();
     sheet.homeDoubles = doubles('A', ['Tomi', null]);
     const plan = buildFillPlan(sheet, rosters);
+    expect(plan.lineup.home.map((e) => e.player)).toEqual(['Muster, Daniel', 'Meier, Tim', 'Schultze, Tobias']);
+    expect(plan.doubles.home![1]!.player).toBeNull();
+
     const learned = {};
     learnFromChoices(learned, plan, {
-      singles: { home: { A: 'Muster, Daniel', B: 'Meier, Tim', C: 'Schultze, Tobias' }, guest: {} },
-      doubles: { home: ['Muster, Daniel', 'Keller, Thomas'], guest: [] },
+      // B corrected, A and C confirmed as proposed.
+      singles: { home: { A: 'Muster, Daniel', B: 'Keller, Thomas', C: 'Schultze, Tobias' }, guest: {} },
+      // The unresolved doubles-only "Tomi" filled in.
+      doubles: { home: ['Muster, Daniel', 'Brunner, Peter'], guest: [] },
     });
-    expect(learned).toEqual({
-      'pinguin zurich': { dane: 'Muster, Daniel', tim: 'Meier, Tim', tobias: 'Schultze, Tobias', tomi: 'Keller, Thomas' },
-      'buchs zh': {},
+    expect(learned).toEqual({ 'pinguin zurich': { tim: 'Keller, Thomas', tomi: 'Brunner, Peter' } });
+  });
+
+  it('does not learn names that fit several players', () => {
+    const sameName: Rosters = {
+      ...rosters,
+      home: { ...rosters.home, players: [...rosters.home.players, { name: 'Weber, Tim', inLineup: false }] },
+    };
+    const plan = buildFillPlan(exampleSheet(), sameName);
+    const learned = {};
+    learnFromChoices(learned, plan, {
+      singles: { home: { A: 'Muster, Daniel', B: 'Weber, Tim', C: 'Schultze, Tobias' }, guest: {} },
+      doubles: { home: [], guest: [] },
     });
+    expect(learned).toEqual({});
   });
 });
 
