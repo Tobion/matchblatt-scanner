@@ -8,7 +8,8 @@ import {
 } from '../src/clicktt/lineup';
 import { detectStep, matchKey } from '../src/clicktt/page';
 import { fillResults, readChosenPlayers, readResultRows } from '../src/clicktt/results';
-import { doubles, fixturePlan, loadPage } from './helpers';
+import { buildFillPlan } from '../src/domain/plan';
+import { doubles, exampleSheet, fixturePlan, loadPage } from './helpers';
 
 describe('page detection', () => {
   it('detects the entry steps and the match', () => {
@@ -122,7 +123,7 @@ describe('step 1: lineup', () => {
     });
     expect(nextLineupAction(sections, plan).kind).toBe('assign');
     expect(assignPositions(sections, plan).missing).toEqual([
-      { side: 'home', position: 'Doppel', writtenName: 'Zorro', player: null },
+      { side: 'home', position: 'Doppel', writtenName: 'Zorro', player: null, alternatives: [] },
     ]);
   });
 
@@ -134,7 +135,26 @@ describe('step 1: lineup', () => {
     });
     expect(nextLineupAction(sections, plan).kind).toBe('assign');
     const { missing } = assignPositions(sections, plan);
-    expect(missing).toEqual([{ side: 'home', position: 'C', writtenName: 'Zorro', player: null }]);
+    expect(missing).toEqual([{ side: 'home', position: 'C', writtenName: 'Zorro', player: null, alternatives: [] }]);
+    expect(sections[0]!.rows[2]!.positionSelect.value).toBe(NO_SELECTION);
+  });
+
+  it('does not pick a player for an ambiguous name', () => {
+    const doc = loadPage('click-tt-single-match-report-part-1.html');
+    const sections = readLineupSections(doc);
+    // The selection list contains "Dolder, Markus" and "Gabriel, Markus".
+    const sheet = exampleSheet();
+    const matches = { A: 'Stuber, Lukas', B: 'Moser, Herbert', C: null, X: 'Weber, Andreas', Y: 'Ung, No', Z: 'Rashiti, Aziz' };
+    for (const player of sheet.players) player.rosterMatch = matches[player.position];
+    sheet.players.find((p) => p.position === 'C')!.writtenName = 'Markus';
+    // Even a learned mapping must not pick one of them.
+    const plan = buildFillPlan(sheet, readRosters(sections)!, { 'pinguin zurich iii': { markus: 'Dolder, Markus' } });
+
+    expect(plan.lineup.home[2]).toMatchObject({ player: null, alternatives: ['Dolder, Markus', 'Gabriel, Markus'] });
+    expect(nextLineupAction(sections, plan).kind).toBe('assign');
+    expect(assignPositions(sections, plan).missing).toEqual([
+      { side: 'home', position: 'C', writtenName: 'Markus', player: null, alternatives: ['Dolder, Markus', 'Gabriel, Markus'] },
+    ]);
     expect(sections[0]!.rows[2]!.positionSelect.value).toBe(NO_SELECTION);
   });
 });

@@ -63,11 +63,11 @@ export function nameSimilarity(written: string, rosterName: string): number {
   const full = `${first} ${last}`.trim();
 
   if (w === first || w === full || w === `${last} ${first}`.trim()) return 1;
+  // "Firstname L." style; checked first so the initial can tell apart players with the same first name.
+  const [wFirst, wRest] = w.split(' ');
+  if (wRest && wFirst === first) return last.startsWith(wRest) ? 0.97 : 0.8;
   // Nicknames are often a prefix of the first name ("Dani" → "Daniel").
   if (first && w.length >= 3 && (first.startsWith(w) || w.startsWith(first))) return 0.92;
-  // "Firstname L." style.
-  const [wFirst, wRest] = w.split(' ');
-  if (wRest && wFirst === first && last.startsWith(wRest)) return 0.97;
   return Math.max(jaroWinkler(w, first), jaroWinkler(w, last) - 0.05, jaroWinkler(w, full));
 }
 
@@ -85,6 +85,18 @@ export function rankCandidates(written: string, candidates: readonly string[]): 
 const MIN_SCORE = 0.85;
 const MIN_MARGIN = 0.08;
 const CONFIDENT_SCORE = 0.95;
+
+/**
+ * Candidates that fit the written name equally well (e.g. a first name shared
+ * by several players). Empty unless at least two candidates fit.
+ */
+export function ambiguousCandidates(written: string, candidates: readonly string[]): string[] {
+  const ranked = rankCandidates(written, candidates);
+  const best = ranked[0];
+  if (!best || best.score < MIN_SCORE) return [];
+  const close = ranked.filter((c) => c.score >= MIN_SCORE && best.score - c.score < MIN_MARGIN).map((c) => c.name);
+  return close.length > 1 ? close : [];
+}
 
 /** Returns the clearly best candidate or null if none or several fit. */
 export function bestCandidate(

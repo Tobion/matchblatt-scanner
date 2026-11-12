@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bestCandidate, nameSimilarity, normalizeName, stripRankPrefix } from '../src/domain/names';
+import { ambiguousCandidates, bestCandidate, nameSimilarity, normalizeName, stripRankPrefix } from '../src/domain/names';
 import { buildFillPlan } from '../src/domain/plan';
 import { analyzeGame, isValidSet } from '../src/domain/validate';
 import type { Rosters } from '../src/domain/model';
@@ -73,6 +73,15 @@ describe('names', () => {
     expect(bestCandidate('Marc', ['Meier, Marc', 'Huber, Marc'])).toBeNull();
     expect(bestCandidate('Zorro', ['Meier, Marc', 'Huber, Marc'])).toBeNull();
   });
+
+  it('lists the candidates of an ambiguous name', () => {
+    const roster = ['Meier, Marc', 'Huber, Marc', 'Keller, Thomas'];
+    expect(ambiguousCandidates('Marc', roster)).toEqual(['Meier, Marc', 'Huber, Marc']);
+    expect(ambiguousCandidates('Marc H.', roster)).toEqual([]);
+    expect(bestCandidate('Marc H.', roster)).toEqual({ name: 'Huber, Marc', uncertain: false });
+    expect(ambiguousCandidates('Thomas', roster)).toEqual([]);
+    expect(ambiguousCandidates('Zorro', roster)).toEqual([]);
+  });
 });
 
 describe('buildFillPlan with the example sheet', () => {
@@ -106,6 +115,39 @@ describe('buildFillPlan with the example sheet', () => {
     expect(plan.lineup.home[0]).toMatchObject({ player: 'Keller, Thomas', uncertain: false });
   });
 
+  describe('with two players of the same first name', () => {
+    const sameName: Rosters = {
+      ...rosters,
+      home: { ...rosters.home, players: [...rosters.home.players, { name: 'Weber, Tim', inLineup: false }] },
+    };
+
+    it('leaves the player open when the model finds no match', () => {
+      const plan = buildFillPlan(exampleSheet(), sameName);
+      expect(plan.lineup.home[1]).toMatchObject({
+        writtenName: 'Tim',
+        player: null,
+        uncertain: true,
+        alternatives: ['Meier, Tim', 'Weber, Tim'],
+      });
+    });
+
+    it('ignores a model guess and a learned choice', () => {
+      const sheet = exampleSheet();
+      sheet.players.find((p) => p.position === 'B')!.rosterMatch = 'Weber, Tim';
+      const learned = { 'pinguin zurich': { tim: 'Meier, Tim' } };
+      expect(buildFillPlan(sheet, sameName, learned).lineup.home[1]).toMatchObject({
+        player: null,
+        alternatives: ['Meier, Tim', 'Weber, Tim'],
+      });
+    });
+
+    it('resolves a name with the initial of the last name', () => {
+      const sheet = exampleSheet();
+      sheet.players.find((p) => p.position === 'B')!.writtenName = 'Tim W.';
+      expect(buildFillPlan(sheet, sameName).lineup.home[1]).toMatchObject({ player: 'Weber, Tim', alternatives: [] });
+    });
+  });
+
   it('does not enter invalid set scores and reports total mismatches', () => {
     const sheet = exampleSheet();
     sheet.games[1]!.sets[0] = { home: 11, guest: 10, uncertain: false };
@@ -130,8 +172,8 @@ describe('buildFillPlan with the example sheet', () => {
     sheet.homeDoubles = doubles(['Tobias', null], ['Thomas', null]);
     const plan = buildFillPlan(sheet, rosters);
     expect(plan.doubles.home).toEqual([
-      { position: 'C', writtenName: 'Tobias', player: 'Schultze, Tobias', uncertain: false },
-      { position: null, writtenName: 'Thomas', player: 'Keller, Thomas', uncertain: false },
+      { position: 'C', writtenName: 'Tobias', player: 'Schultze, Tobias', uncertain: false, alternatives: [] },
+      { position: null, writtenName: 'Thomas', player: 'Keller, Thomas', uncertain: false, alternatives: [] },
     ]);
     expect(plan.warnings).toEqual([]);
   });

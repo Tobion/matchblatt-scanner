@@ -142,7 +142,7 @@ export function performReloadingAction(action: Exclude<LineupAction, { kind: 'as
 
 export interface AssignResult {
   /** Sheet players (position, or "Doppel" for doubles-only) not (yet) in the lineup table. */
-  missing: { side: Side; position: string; writtenName: string; player: string | null }[];
+  missing: { side: Side; position: string; writtenName: string; player: string | null; alternatives: string[] }[];
 }
 
 /** Sets single positions and doubles flags of all players in the lineup table. */
@@ -170,6 +170,7 @@ export function assignPositions(sections: LineupSection[], plan: FillPlan): Assi
           position: entry.position ?? 'Doppel',
           writtenName: entry.writtenName,
           player: entry.player,
+          alternatives: entry.alternatives,
         });
       }
     }

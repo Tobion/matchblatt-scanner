@@ -83,6 +83,11 @@ export function mountStatusBar(doc: Document): StatusBar {
   };
 }
 
+/** German hint for a written name that fits several roster players. */
+export function ambiguityHint(alternatives: readonly string[]): string {
+  return `passt auf mehrere Spieler (${alternatives.join(' / ')})`;
+}
+
 /** Outlines a form field and shows a short message next to it. */
 export function markField(element: HTMLElement, message: string): void {
   const doc = element.ownerDocument;

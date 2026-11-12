@@ -8,7 +8,7 @@ import {
   type SetScore,
   type Side,
 } from './model';
-import { bestCandidate, normalizeName } from './names';
+import { ambiguousCandidates, bestCandidate, normalizeName } from './names';
 import { analyzeGame, formatSet, isValidSet } from './validate';
 
 /**
@@ -33,6 +33,8 @@ export interface LineupEntry {
   /** Resolved click-tt player name, null if it could not be matched. */
   player: string | null;
   uncertain: boolean;
+  /** Roster players the written name fits equally well (e.g. a shared first name); empty if unambiguous. */
+  alternatives: string[];
 }
 
 export interface DoublesEntry {
@@ -41,6 +43,7 @@ export interface DoublesEntry {
   writtenName: string;
   player: string | null;
   uncertain: boolean;
+  alternatives: string[];
 }
 
 export interface SetPlan {
@@ -95,9 +98,16 @@ export function buildFillPlan(sheet: RecognizedSheet, rosters: Rosters, learned:
 interface NameResolution {
   player: string | null;
   uncertain: boolean;
+  alternatives: string[];
 }
 
-/** Maps a handwritten name to a click-tt player: learned mapping, then model, then fuzzy match. */
+/**
+ * Maps a handwritten name to a click-tt player: learned mapping, then model,
+ * then fuzzy match. A name that fits several players equally well (e.g. a
+ * first name shared by two players) is never resolved automatically, not even
+ * by a learned mapping: which of them played can differ from match to match,
+ * so the user has to pick the player.
+ */
 function resolveName(
   writtenName: string,
   rosterMatch: string | null,
@@ -106,14 +116,16 @@ function resolveName(
   rosters: Rosters,
   learned: LearnedNames,
 ): NameResolution {
-  if (!writtenName) return { player: null, uncertain: true };
+  if (!writtenName) return { player: null, uncertain: true, alternatives: [] };
   const roster = rosters[side];
   const candidates = roster.players.map((p) => p.name);
   const byNormalized = new Map(candidates.map((name) => [normalizeName(name), name]));
+  const alternatives = ambiguousCandidates(writtenName, candidates);
+  if (alternatives.length) return { player: null, uncertain: true, alternatives };
 
   const learnedName = learned[learnedKey(roster.teamName)]?.[learnedKey(writtenName)];
   if (learnedName && byNormalized.has(normalizeName(learnedName))) {
-    return { player: byNormalized.get(normalizeName(learnedName))!, uncertain: false };
+    return { player: byNormalized.get(normalizeName(learnedName))!, uncertain: false, alternatives: [] };
   }
 
   const local = bestCandidate(writtenName, candidates);
@@ -121,10 +133,10 @@ function resolveName(
   if (modelMatch) {
     // Uncertain if the model says so or local fuzzy matching prefers someone else.
     const disagrees = local !== null && local.name !== modelMatch;
-    return { player: modelMatch, uncertain: nameUncertain || disagrees };
+    return { player: modelMatch, uncertain: nameUncertain || disagrees, alternatives: [] };
   }
-  if (local) return { player: local.name, uncertain: local.uncertain };
-  return { player: null, uncertain: true };
+  if (local) return { player: local.name, uncertain: local.uncertain, alternatives: [] };
+  return { player: null, uncertain: true, alternatives: [] };
 }
 
 function resolveLineup(side: Side, sheet: RecognizedSheet, rosters: Rosters, learned: LearnedNames): LineupEntry[] {
@@ -147,6 +159,7 @@ function resolveLineup(side: Side, sheet: RecognizedSheet, rosters: Rosters, lea
     if (entry.player && entries.filter((e) => e.player === entry.player).length > 1) {
       entry.player = null;
       entry.uncertain = true;
+      entry.alternatives = [];
     }
   }
   return entries;
@@ -169,7 +182,13 @@ function resolveDoubles(
     const writtenName = doubles.writtenName.trim();
     const singles = lineup.find((e) => e.position === doubles.position);
     if (singles) {
-      return { position: singles.position, writtenName: writtenName || singles.writtenName, player: singles.player, uncertain: singles.uncertain };
+      return {
+        position: singles.position,
+        writtenName: writtenName || singles.writtenName,
+        player: singles.player,
+        uncertain: singles.uncertain,
+        alternatives: singles.alternatives,
+      };
     }
     const resolved = resolveName(writtenName, doubles.rosterMatch, doubles.nameUncertain, side, rosters, learned);
     // A name that turns out to be a singles player refers to that position.

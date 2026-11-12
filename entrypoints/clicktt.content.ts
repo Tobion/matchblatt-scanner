@@ -15,7 +15,7 @@ import {
   readRosters,
 } from '../src/clicktt/lineup';
 import { fillResults, getResultsForm, readChosenPlayers, readResultRows } from '../src/clicktt/results';
-import { clearMarks, markField, mountStatusBar, type StatusBar } from '../src/clicktt/ui';
+import { ambiguityHint, clearMarks, markField, mountStatusBar, type StatusBar } from '../src/clicktt/ui';
 import {
   clearPending,
   loadLearnedNames,
@@ -119,11 +119,19 @@ async function continueLineup(pending: PendingFill, bar: StatusBar): Promise<voi
   const problems: string[] = [];
   for (const m of missing) {
     const section = sections.find((s) => s.side === m.side)!;
+    const label = `${SIDE_LABEL[m.side]} ${m.position}: „${m.writtenName || '(leer)'}“`;
     const text = m.player
-      ? `${SIDE_LABEL[m.side]} ${m.position}: „${m.writtenName}“ = ${m.player} – bitte aus der Liste einfügen`
-      : `${SIDE_LABEL[m.side]} ${m.position}: „${m.writtenName || '(leer)'}“ nicht gefunden – bitte Spieler wählen`;
+      ? `${label} = ${m.player} – bitte aus der Liste einfügen`
+      : m.alternatives.length
+        ? `${label} ${ambiguityHint(m.alternatives)} – bitte richtigen Spieler wählen`
+        : `${label} nicht gefunden – bitte Spieler wählen`;
     problems.push(text);
-    if (section.list) markField(section.list, text);
+    // For an ambiguous name mark the candidates already in the lineup, and the
+    // selection list only if further candidates are there.
+    const candidateRows = m.player ? [] : section.rows.filter((r) => m.alternatives.includes(r.player));
+    for (const row of candidateRows) markField(row.positionSelect, `Matchblatt: „${m.writtenName}“ – dieser Spieler?`);
+    const inList = !m.alternatives.length || m.player || candidateRows.length < m.alternatives.length;
+    if (section.list && inList) markField(section.list, text);
   }
   for (const side of ['home', 'guest'] as const) {
     if (!pending.plan.doubles[side]) problems.push(`${SIDE_LABEL[side]}: Doppel bitte selbst wählen`);

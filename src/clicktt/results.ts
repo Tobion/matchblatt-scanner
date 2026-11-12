@@ -4,6 +4,7 @@ import { playerAt, type FillPlan, type GamePlan } from '../domain/plan';
 import { formatSet } from '../domain/validate';
 import type { ChosenPlayers } from '../domain/learn';
 import { collapse, selectedOptionText } from './page';
+import { ambiguityHint } from './ui';
 
 /** Step 2 "Erfassung": one game row of the result table. */
 export interface ResultRow {
@@ -72,15 +73,21 @@ export function fillResults(rows: ResultRow[], plan: FillPlan): FieldMark[] {
   return marks;
 }
 
-function expectedPlayers(game: GamePlan, plan: FillPlan, side: Side): ({ player: string | null; written: string } | null)[] {
+interface ExpectedPlayer {
+  player: string | null;
+  written: string;
+  alternatives: string[];
+}
+
+function expectedPlayers(game: GamePlan, plan: FillPlan, side: Side): (ExpectedPlayer | null)[] {
   if (game.definition.kind === 'doubles') {
     const entries = plan.doubles[side];
     if (!entries) return [null, null];
-    return entries.map((e) => ({ player: e.player, written: e.writtenName }));
+    return entries.map((e) => ({ player: e.player, written: e.writtenName, alternatives: e.alternatives }));
   }
   const position: Position = side === 'home' ? game.definition.home : game.definition.guest;
   const entry = playerAt(plan, side, position);
-  return [entry ? { player: entry.player, written: entry.writtenName } : null];
+  return [entry ? { player: entry.player, written: entry.writtenName, alternatives: entry.alternatives } : null];
 }
 
 function checkPlayers(row: ResultRow, game: GamePlan, plan: FillPlan, marks: FieldMark[]): void {
@@ -96,7 +103,10 @@ function checkPlayers(row: ResultRow, game: GamePlan, plan: FillPlan, marks: Fie
         return;
       }
       if (!want.player) {
-        marks.push({ element: select, message: `Matchblatt: „${want.written}“ – Spieler bitte prüfen` });
+        const message = want.alternatives.length
+          ? `Matchblatt: „${want.written}“ ${ambiguityHint(want.alternatives)} – bitte Spieler wählen`
+          : `Matchblatt: „${want.written}“ – Spieler bitte prüfen`;
+        marks.push({ element: select, message });
         return;
       }
       if (normalizeName(selectedOptionText(select)) === normalizeName(want.player)) return;
